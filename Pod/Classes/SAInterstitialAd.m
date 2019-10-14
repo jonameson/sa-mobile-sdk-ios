@@ -66,7 +66,7 @@
 #import "SAVersion.h"
 
 
-@interface SAInterstitialAd () <SABannerAdVisibilityDelegate>
+@interface SAInterstitialAd ()
 
 // views
 @property (nonatomic, strong) SABannerAd *banner;
@@ -75,7 +75,7 @@
 
 // hold the prev status bar hidden or not
 @property (nonatomic, assign) BOOL       previousStatusBarHiddenValue;
-@property (nonatomic, assign) BOOL       didSetUpConstraints;
+
 @end
 
 @implementation SAInterstitialAd
@@ -101,7 +101,7 @@ static BOOL isMoatLimitingEnabled    = SA_DEFAULT_MOAT_LIMITING_STATE;
 
     // get the status bar value
     _previousStatusBarHiddenValue = [[UIApplication sharedApplication] isStatusBarHidden];
-    _didSetUpConstraints = NO;
+    
     // get local versions of the static module vars
     sacallback _callbackL    = [SAInterstitialAd getCallback];
     BOOL _isParentalGateEnabledL = [SAInterstitialAd getIsParentalGateEnabled];
@@ -113,7 +113,6 @@ static BOOL isMoatLimitingEnabled    = SA_DEFAULT_MOAT_LIMITING_STATE;
     
     // create close button
     _closeBtn = [[UIButton alloc] initWithFrame:CGRectZero];
-    [_closeBtn setHidden:true];
     [_closeBtn setTitle:@"" forState:UIControlStateNormal];
     [_closeBtn setImage:[SAImageUtils closeImage] forState:UIControlStateNormal];
     [_closeBtn addTarget:self action:@selector(close) forControlEvents:UIControlEventTouchUpInside];
@@ -122,7 +121,6 @@ static BOOL isMoatLimitingEnabled    = SA_DEFAULT_MOAT_LIMITING_STATE;
     
     // create & play banner
     _banner = [[SABannerAd alloc] initWithFrame:CGRectZero];
-    [_banner setBannerVisibilityDelegate:self];
     [_banner setConfiguration:configuration];
     [_banner setTestMode:isTestingEnabled];
     [_banner setCallback:_callbackL];
@@ -136,6 +134,13 @@ static BOOL isMoatLimitingEnabled    = SA_DEFAULT_MOAT_LIMITING_STATE;
 }
 
 /**
+ * Overridden UIViewController "didReceiveMemoryWarning" method
+ */
+- (void) didReceiveMemoryWarning {
+    [super didReceiveMemoryWarning];
+}
+
+/**
  * Overridden UIViewController "viewWillAppear" method in which the status bar
  * is set to hidden and further math is applied to get the correct size
  * to resize the ad to
@@ -144,6 +149,9 @@ static BOOL isMoatLimitingEnabled    = SA_DEFAULT_MOAT_LIMITING_STATE;
  */
 - (void) viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
+    
+    // status bar hidden
+    [[UIApplication sharedApplication] setStatusBarHidden:YES withAnimation:UIStatusBarAnimationNone];
     
     // setup coordinates
     CGSize scrSize = [UIScreen mainScreen].bounds.size;
@@ -180,10 +188,22 @@ static BOOL isMoatLimitingEnabled    = SA_DEFAULT_MOAT_LIMITING_STATE;
     }
     
     // resize
-    [self resizeSubviews:CGRectMake(0, 0, currentSize.width, currentSize.height)];
+    [self resize:CGRectMake(0, 0, currentSize.width, currentSize.height)];
     
     // play the ad
     [_banner play];
+}
+
+/**
+ * Overridden UIViewController "viewWillDisappear" method in which I reset the
+ * status bar state
+ *
+ * @param animated  whether the view will disappeared animated or not
+ */
+- (void) viewWillDisappear:(BOOL)animated {
+    [super viewWillDisappear:animated];
+    [[UIApplication sharedApplication] setStatusBarHidden:_previousStatusBarHiddenValue
+                                            withAnimation:UIStatusBarAnimationNone];
 }
 
 /**
@@ -195,7 +215,7 @@ static BOOL isMoatLimitingEnabled    = SA_DEFAULT_MOAT_LIMITING_STATE;
  */
 - (void) viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator {
     [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
-    [self resizeSubviews:CGRectMake(0, 0, size.width, size.height)];
+    [self resize:CGRectMake(0, 0, size.width, size.height)];
 }
 
 /**
@@ -208,7 +228,7 @@ static BOOL isMoatLimitingEnabled    = SA_DEFAULT_MOAT_LIMITING_STATE;
     
     
     NSArray *supportedOrientations = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"UISupportedInterfaceOrientations"];
-    
+
     UIInterfaceOrientationMask mask = UIInterfaceOrientationMaskAll;
     
     SAOrientation orientationL = [SAInterstitialAd getOrientation];
@@ -262,16 +282,6 @@ static BOOL isMoatLimitingEnabled    = SA_DEFAULT_MOAT_LIMITING_STATE;
 }
 
 /**
- * Overridden UIViewController "preferredStatusBarUpdateAnimation" method
- * in which I set that the view controller prefers to fade away the status bar
- *
- * @return UIStatusBarAnimationFade
- */
-- (UIStatusBarAnimation)preferredStatusBarUpdateAnimation {
-    return UIStatusBarAnimationFade;
-}
-
-/**
  * Method that is called to close the ad
  */
 - (void) close {
@@ -287,10 +297,10 @@ static BOOL isMoatLimitingEnabled    = SA_DEFAULT_MOAT_LIMITING_STATE;
 
 /**
  * Method that resizes the ad and it's banner SABannerAd object
- *
+ * 
  * @param frame the new frame to resize to
  */
-- (void) resizeSubviews: (CGRect) frame {
+- (void) resize: (CGRect) frame {
     // calc proper new frame
     CGFloat tW = frame.size.width;
     CGFloat tH = frame.size.height;
@@ -299,58 +309,13 @@ static BOOL isMoatLimitingEnabled    = SA_DEFAULT_MOAT_LIMITING_STATE;
     CGRect newR = [SAUtils map:frame into:CGRectMake(tX, tY, tW, tH)];;
     newR.origin.x += tX;
     newR.origin.y += tY;
-    
+
     // invoke private banner method
     [_banner resize:newR];
     
+    // assign new frames & resize
+    [_closeBtn setFrame:CGRectMake(frame.size.width - 40.0f, 0, 40.0f, 40.0f)];
     [self.view bringSubviewToFront:_closeBtn];
-}
-
-/**
- * Method that sets up constraints for the close button
- */
-- (void)updateViewConstraints {
-    if (!_didSetUpConstraints) {
-        _closeBtn.translatesAutoresizingMaskIntoConstraints = NO;
-        
-        if (@available(iOS 11.0, *)) {
-            UILayoutGuide *safeGuide = self.view.safeAreaLayoutGuide;
-            [NSLayoutConstraint activateConstraints:@[[_closeBtn.topAnchor constraintEqualToAnchor:safeGuide.topAnchor constant:0.0f],
-                                                      [safeGuide.trailingAnchor constraintEqualToAnchor:_closeBtn.trailingAnchor]]];
-        } else {
-            [NSLayoutConstraint activateConstraints:@[[_closeBtn.topAnchor constraintEqualToAnchor:self.topLayoutGuide.bottomAnchor
-                                                                                          constant:0.0f]]];
-            NSLayoutConstraint *rightConstraint = [NSLayoutConstraint constraintWithItem:_closeBtn
-                                                                               attribute:NSLayoutAttributeTrailing
-                                                                               relatedBy:NSLayoutRelationEqual
-                                                                                  toItem:self.view
-                                                                               attribute:NSLayoutAttributeTrailing
-                                                                              multiplier:1.0f
-                                                                                constant:0.0f];
-            [self.view addConstraint:rightConstraint];
-        }
-        
-        NSLayoutConstraint *widthConstraint = [NSLayoutConstraint constraintWithItem:_closeBtn
-                                                                           attribute:NSLayoutAttributeWidth
-                                                                           relatedBy:NSLayoutRelationEqual
-                                                                              toItem:nil
-                                                                           attribute:NSLayoutAttributeNotAnAttribute
-                                                                          multiplier:1.0f
-                                                                            constant:40.0f];
-        NSLayoutConstraint *heightConstraint = [NSLayoutConstraint constraintWithItem:_closeBtn
-                                                                            attribute:NSLayoutAttributeHeight
-                                                                            relatedBy:NSLayoutRelationEqual
-                                                                               toItem:nil
-                                                                            attribute:NSLayoutAttributeNotAnAttribute
-                                                                           multiplier:1.0f
-                                                                             constant:40.0f];
-        [_closeBtn addConstraint:widthConstraint];
-        [_closeBtn addConstraint:heightConstraint];
-        
-        _didSetUpConstraints = YES;
-    }
-    
-    [super updateViewConstraints];
 }
 
 + (void) load:(NSInteger) placementId {
@@ -386,7 +351,7 @@ static BOOL isMoatLimitingEnabled    = SA_DEFAULT_MOAT_LIMITING_STATE;
         
         // get the loader
         SALoader *loader = [[SALoader alloc] init];
-        
+    
         [loader loadAd:placementId withSession:session andResult:^(SAResponse *response) {
             
             if (response.status != 200) {
@@ -450,8 +415,6 @@ static BOOL isMoatLimitingEnabled    = SA_DEFAULT_MOAT_LIMITING_STATE;
         [ads removeObjectForKey:@(placementId)];
         
         // present vc
-        newVC.modalPresentationStyle = UIModalPresentationFullScreen;
-        newVC.modalTransitionStyle = UIModalTransitionStyleCoverVertical;
         [parent presentViewController:newVC animated:YES completion:nil];
         
     } else {
@@ -594,9 +557,6 @@ static BOOL isMoatLimitingEnabled    = SA_DEFAULT_MOAT_LIMITING_STATE;
 + (BOOL) getMoatLimitingState {
     return isMoatLimitingEnabled;
 }
-
-- (void) hasBeenVisible {
-    [_closeBtn setHidden:false];
-}
+                                    
 
 @end

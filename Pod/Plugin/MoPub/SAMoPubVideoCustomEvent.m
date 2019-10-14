@@ -10,7 +10,6 @@
 #import "MPRewardedVideoReward.h"
 #import "SAMoPub.h"
 #import "NSDictionary+SafeHandling.h"
-#import <SuperAwesome/SuperAwesome-Swift.h>
 
 @interface SAMoPubVideoCustomEvent ()
 @property (nonatomic, strong) MPRewardedVideoReward *reward;
@@ -83,7 +82,7 @@
     [SAVideoAd setSmallClick:shouldShowSmallClickButton];
     [SAVideoAd setOrientation:orientation];
     [SAVideoAd setPlaybackMode:playback];
-
+    
     [SAVideoAd setCallback:^(NSInteger placementId, SAEvent event) {
         switch (event) {
             case adLoaded: {
@@ -150,7 +149,7 @@
  * @param viewController the view controller from which the ad will spring
  */
 - (void) presentRewardedVideoFromViewController:(UIViewController *)viewController {
-//    [SAVideoAd play:_placementId fromVC:viewController];
+    [SAVideoAd play:_placementId fromVC:viewController];
     [self.delegate rewardedVideoWillAppearForCustomEvent:self];
 }
 

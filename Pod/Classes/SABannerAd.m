@@ -139,8 +139,6 @@
 
 @property (nonatomic, assign) long               currentClickThreshold;
 
-@property (weak) id<SABannerAdVisibilityDelegate> visibilityDelegate;
-
 @end
 
 @implementation SABannerAd
@@ -284,11 +282,10 @@
         
         // moat tracking
         NSString *moatString = [_events startMoatTrackingForDisplay:[_webplayer getWebView]];
+        NSLog(@"MOAT String is %@", moatString);
         
         // form the full HTML string and play it!
         NSString *fullHTMLToLoad = [_ad.creative.details.media.html stringByReplacingOccurrencesOfString:@"_MOAT_" withString:moatString];
-        
-        NSLog(@"HTML String is %@", fullHTMLToLoad);
         
         // trigger local impression event
         [_events triggerImpressionEvent];
@@ -306,9 +303,6 @@
                         // only in case of success trigger event
                         if (success) {
                             [weakSelf.events triggerViewableImpressionEvent];
-                            if (weakSelf.visibilityDelegate != NULL) {
-                                [weakSelf.visibilityDelegate hasBeenVisible];
-                            }
                         }
                     }];
                     
@@ -332,7 +326,25 @@
             // only call the next part (either pg or click) if the click
             // url is valid, else do nothong
             if (url && [url absoluteString]) {
-                [weakSelf showParentalGateIfNeededWithCompletion: ^{ [weakSelf click:[url absoluteString]]; }];
+                if (weakSelf.isParentalGateEnabled) {
+                    
+                    [SAParentalGate setPgOpenCallback:^{
+                        [weakSelf.events triggerPgOpenEvent];
+                    }];
+                    [SAParentalGate setPgCanceledCallback:^{
+                        [weakSelf.events triggerPgCloseEvent];
+                    }];
+                    [SAParentalGate setPgFailedCallback:^{
+                        [weakSelf.events triggerPgFailEvent];
+                    }];
+                    [SAParentalGate setPgSuccessCallback:^{
+                        [weakSelf.events triggerPgSuccessEvent];
+                        [weakSelf click:[url absoluteString]];
+                    }];
+                    [SAParentalGate play];
+                } else {
+                    [weakSelf click: [url absoluteString]];
+                }
             }
         
         }];
@@ -375,29 +387,6 @@
     }
 }
 
-- (void) showParentalGateIfNeededWithCompletion: (void(^)(void)) completion
-{
-    if (self.isParentalGateEnabled) {
-        
-        [SAParentalGate setPgOpenCallback:^{
-            [self.events triggerPgOpenEvent];
-        }];
-        [SAParentalGate setPgCanceledCallback:^{
-            [self.events triggerPgCloseEvent];
-        }];
-        [SAParentalGate setPgFailedCallback:^{
-            [self.events triggerPgFailEvent];
-        }];
-        [SAParentalGate setPgSuccessCallback:^{
-            [self.events triggerPgSuccessEvent];
-            completion();
-        }];
-        [SAParentalGate play];
-    } else {
-        completion();
-    }
-}
-
 - (void) setAd:(SAAd*) ad {
     _ad = ad;
 }
@@ -418,11 +407,6 @@
 }
 
 - (void) close {
-    // de-init delegate
-    if (_visibilityDelegate != NULL) {
-        _visibilityDelegate = NULL;
-    }
-    
     // callback
     if (_callback != NULL) {
         _callback (_ad.placementId, adClosed);
@@ -499,19 +483,14 @@
     
     //
     // trigger click evt
-    if (_ad != nil &&
-        _ad.creative != nil &&
-        _ad.creative.format != SA_Rich &&
-        _session &&
-        [destination rangeOfString:[_session getBaseUrl]].location == NSNotFound) {
+    if (_session && [destination rangeOfString:[_session getBaseUrl]].location == NSNotFound) {
         [_events triggerClickEvent];
     }
     
     //
     // open browser & goto url
-    [[UIApplication sharedApplication] openURL:[NSURL URLWithString:destination]
-                                       options:[[NSDictionary alloc] init]
-                             completionHandler:nil];
+    [[UIApplication sharedApplication] openURL:[NSURL URLWithString:destination]];
+    
 }
 
 - (void) resize:(CGRect)toframe {
@@ -539,18 +518,14 @@
  * Method called when the user clicks on a padlock
  */
 - (void) padlockAction {
-    __weak typeof (self) weakSelf = self;
-    [self showParentalGateIfNeededWithCompletion: ^{ [weakSelf showSuperAwesomeWebPaeInSafari]; }];
-}
-
-- (void) showSuperAwesomeWebPaeInSafari
-{
-    [SABumperPage setCallback:^{
-        [[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"https://ads.superawesome.tv/v2/safead"]
-                                           options:[[NSDictionary alloc] init]
-                                 completionHandler:nil];
+    [SAParentalGate setPgSuccessCallback:^{
+        [SABumperPage setCallback:^{
+           [[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"https://ads.superawesome.tv/v2/safead"]];
+        }];
+        [SABumperPage play];
     }];
-    [SABumperPage play];
+    [SAParentalGate play];
+    
 }
 
 - (BOOL) isClosed {
@@ -629,8 +604,5 @@
     _moatLimiting = false;
 }
 
-- (void) setBannerVisibilityDelegate:(id<SABannerAdVisibilityDelegate>)delegate {
-    self.visibilityDelegate = delegate;
-}
 
 @end

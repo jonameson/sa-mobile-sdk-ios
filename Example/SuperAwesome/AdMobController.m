@@ -1,6 +1,6 @@
 #import "AdMobController.h"
 //#import <GoogleMobileAds/GoogleMobileAds.h>
-//#import "AwesomeAds.h"
+#import "AwesomeAds.h"
 //#import "SAAdMobExtras.h"
 
 @interface AdMobController () /*<GADBannerViewDelegate, GADInterstitialDelegate, GADRewardBasedVideoAdDelegate>*/
@@ -15,8 +15,8 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     
-//    //
-//    // banner
+    //
+    // banner
 //    GADRequest *bannerReq = [GADRequest request];
 //
 //    SAAdMobCustomEventExtra *extra1 = [[SAAdMobCustomEventExtra alloc] init];
@@ -110,11 +110,11 @@
 //- (void) adViewWillLeaveApplication:(GADBannerView *)bannerView {
 //    NSLog(@"[SuperAwesome | AdMob] Banner will leave application");
 //}
-
-////////////////////////////////////////////////////////////////////////////////
-// GADInterstitialDelegate
-////////////////////////////////////////////////////////////////////////////////
-
+//
+//////////////////////////////////////////////////////////////////////////////////
+//// GADInterstitialDelegate
+//////////////////////////////////////////////////////////////////////////////////
+//
 //- (void) interstitialDidReceiveAd:(GADInterstitial *)ad {
 //    NSLog(@"[SuperAwesome | AdMob] Interstitial did receive ad");
 //}
@@ -142,11 +142,11 @@
 //- (void) interstitialWillLeaveApplication:(GADInterstitial *)ad {
 //    NSLog(@"[SuperAwesome | AdMob] Interatitial will leave application");
 //}
-
-////////////////////////////////////////////////////////////////////////////////
-// GADMRewardBasedVideoAdNetworkConnector
-////////////////////////////////////////////////////////////////////////////////
-
+//
+//////////////////////////////////////////////////////////////////////////////////
+//// GADMRewardBasedVideoAdNetworkConnector
+//////////////////////////////////////////////////////////////////////////////////
+//
 //- (void)rewardBasedVideoAdDidReceiveAd:(GADRewardBasedVideoAd *)rewardBasedVideoAd {
 //    NSLog(@"[SuperAwesome | AdMob] Video ad did receive ad");
 //}

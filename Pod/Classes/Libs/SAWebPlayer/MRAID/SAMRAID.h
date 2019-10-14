@@ -1,10 +1,9 @@
-#import <WebKit/WebKit.h>
 #import <UIKit/UIKit.h>
 #import "SAMRAIDCommand.h"
 
 @interface SAMRAID : NSObject
 
-@property (nonatomic, weak) WKWebView *webView;
+@property (nonatomic, weak) UIWebView *webView;
 
 @property (nonatomic, assign) BOOL hasMRAID;
 

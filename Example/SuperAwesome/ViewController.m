@@ -12,7 +12,6 @@
 #import "SASession.h"
 #import "SABumperPage.h"
 #import "SAAgeCheck.h"
-@import SuperAwesome;
 
 @interface ViewController () <UITableViewDelegate, UITableViewDataSource>
 @property (weak, nonatomic) IBOutlet UITableView *tableView;
@@ -26,14 +25,6 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     
-//    [SAVideoAd2 setCallback:^(NSInteger placementId, SAEvent event) {
-//        if (event == adLoaded) {
-//            [SAVideoAd2 play:placementId fromVC:self];
-//        }
-//    }];
-//    [SAVideoAd2 setSmallClick:true];
-//    [SAVideoAd2 load:39521];
-    
     SASession *session = [[SASession alloc] init];
     [session setConfigurationStaging];
     
@@ -43,8 +34,8 @@
     [_bannerAd setConfigurationProduction];
     [_bannerAd enableTestMode];
     [_bannerAd disableMoatLimiting];
-    [_bannerAd disableBumperPage];
-    [_bannerAd disableParentalGate];
+    [_bannerAd enableBumperPage];
+    [_bannerAd enableParentalGate];
     [_bannerAd setCallback:^(NSInteger placementId, SAEvent event) {
         
         NSLog(@"SUPER-AWESOME: Banner Ad %ld - Event %ld", (long)placementId, (long)event);
@@ -56,8 +47,8 @@
     
     [SAInterstitialAd setConfigurationProduction];
     [SAInterstitialAd enableTestMode];
-    [SAInterstitialAd disableParentalGate];
-    [SAInterstitialAd disableBumperPage];
+    [SAInterstitialAd enableBumperPage];
+    [SAInterstitialAd enableParentalGate];
     [SAInterstitialAd disableMoatLimiting];
     [SAInterstitialAd setCallback:^(NSInteger placementId, SAEvent event) {
         
@@ -70,16 +61,17 @@
     
     [SAVideoAd setConfigurationProduction];
     [SAVideoAd enableTestMode];
-    [SAVideoAd disableBumperPage];
-    [SAVideoAd disableParentalGate];
+    [SAVideoAd enableBumperPage];
+    [SAVideoAd enableParentalGate];
     [SAVideoAd enableCloseButton];
-    [SAVideoAd enableCloseAtEnd];
-//    [SAVideoAd disableMoatLimiting];
+    [SAVideoAd disableCloseAtEnd];
+    [SAVideoAd disableMoatLimiting];
     [SAVideoAd setCallback:^(NSInteger placementId, SAEvent event) {
-
+        
         NSLog(@"SUPER-AWESOME: Video Ad %ld - Event %ld", (long)placementId, (long)event);
-
+        
         if (event == adLoaded) {
+            [SAVideoAd play:placementId fromVC:self];
             [SAVideoAd play:placementId fromVC:self];
         }
     }];
@@ -88,24 +80,19 @@
                @{
                    @"name": @"Banners",
                    @"items": @[
-                           @{@"name": @"Image Banner", @"pid": @(36508)},
-                           @{@"name": @"Rich Media Banner", @"pid": @(36508)},
-                           @{@"name": @"3rd Party Tag Banner", @"pid": @(36508)},
+                           @{@"name": @"Test Banner", @"pid": @(30471)},
                            ]
                    },
                @{
                    @"name": @"Interstitials",
                    @"items": @[
-                           @{@"name": @"Image Interstitial", @"pid": @(36510)},
-                           @{@"name": @"Rich Media Interstitial", @"pid": @(36510)},
-                           @{@"name": @"3rd Party Tag Interstitial", @"pid": @(36510)}
+                           @{@"name": @"CPM Interstitial 1 (Image)", @"pid": @(30473)},
                            ]
                    },
                @{
                    @"name": @"Videos",
                    @"items": @[
-                           @{@"name": @"Direct video", @"pid": @(39521)},
-                           @{@"name": @"Programmatic video", @"pid": @(39521)}
+                           @{@"name": @"Moat video", @"pid": @(30479)}
                            ]
                    }
                ] mutableCopy];

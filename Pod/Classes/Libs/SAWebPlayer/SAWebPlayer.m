@@ -10,9 +10,8 @@
 #import <MediaPlayer/MediaPlayer.h>
 #import "SAExpandedWebPlayer.h"
 #import "SAResizedWebPlayer.h"
-#import <WebKit/WebKit.h>
 
-@interface SAWebPlayer () <WKUIDelegate, WKNavigationDelegate, WKScriptMessageHandler, SAMRAIDCommandProtocol, SAWebPlayerAuxProtocol>
+@interface SAWebPlayer () <UIWebViewDelegate, SAMRAIDCommandProtocol, SAWebPlayerAuxProtocol>
 
 @property (nonatomic, strong) NSString                      *html;
 
@@ -52,14 +51,22 @@
         _mraid = [[SAMRAID alloc] init];
         
         // create the webview and add it as a subview
-        CGRect contentRect = CGRectMake(0, 0, _contentSize.width, _contentSize.height);
-        CGRect size = [self map:contentRect into:parentRect];
+        _webView = [[SAWebView alloc] initWithFrame:CGRectMake(0, 0, _contentSize.width, _contentSize.height)];
         
-        WKWebViewConfiguration *configuration = [SAWebView defaultConfiguration];
-        [configuration.userContentController addScriptMessageHandler:self
-                                                                name:@"samraid"];
-        
-        _webView = [[SAWebView alloc] initWithFrame:size configuration:configuration];
+        _ctx = [_webView valueForKeyPath:@"documentView.webView.mainFrame.javaScriptContext"];
+        _ctx[@"console"][@"log"] = ^(JSValue * msg) {
+            
+            if ([msg isString] && [msg toString] != nil && [[msg toString] rangeOfString:@"SAMRAID_EXT"].location != NSNotFound) {
+                
+                NSString *jsMsg = [[msg toString] stringByReplacingOccurrencesOfString:@"SAMRAID_EXT" withString:@""];
+                BOOL hasMraid = [jsMsg rangeOfString:@"mraid"].location != NSNotFound;
+                [weakSelf.mraid setHasMRAID:hasMraid];
+                
+                if ([weakSelf.mraid hasMRAID]) {
+                    [weakSelf.delegate didReceiveMessageFromJavaScript:jsMsg];
+                }
+            }
+        };
         
         // add notfication rotation
         [[NSNotificationCenter defaultCenter] addObserverForName:@"UIDeviceOrientationDidChangeNotification"
@@ -69,9 +76,8 @@
                                                           [weakSelf.delegate didRotateScreen];
                                                       }];
         
-        // set delegates
-        _webView.UIDelegate = self;
-        _webView.navigationDelegate = self;
+        // set delegate
+        _webView.delegate = self;
         
         // add subview
         [self addSubview:_webView];
@@ -117,26 +123,27 @@
     
 }
 
-- (void) didMoveToSuperview {
-    [self updateParentFrame:self.superview.frame];
-    [super didMoveToSuperview];
-}
-
 - (void) didRotateScreen {
-    [self updateParentFrame:self.superview.frame];
+    CGRect superFrame = self.superview.frame;
+    [self updateParentFrame:superFrame];
 }
 
 - (void) updateParentFrame:(CGRect) parentRect {
     
     CGRect contentRect = CGRectMake(0, 0, _contentSize.width, _contentSize.height);
     CGRect result = [self map:contentRect into:parentRect];
+    _scaleX = result.size.width / _contentSize.width;
+    _scaleY = result.size.height / _contentSize.height;
+    
     [self setFrame:CGRectMake(0, 0, parentRect.size.width, parentRect.size.height)];
-    [self.webView setFrame:result];
+    
+    _webView.transform = CGAffineTransformMakeScale(_scaleX, _scaleY);
+    _webView.center = self.center;
 }
 
 - (void) loadHTML:(NSString*)html witBase:(NSString*)base {
     // the base HTML that wraps the content html
-    NSString *baseHtml = @"<html><header><meta name=\"viewport\" content=\"width=device-width initial-scale=1\" /><style>html, body, div { margin: 0px; padding: 0px; } html, body { width:100%; height:100%; } </style></header><body>_CONTENT_</body></html>";
+    NSString *baseHtml = @"<html><header><style>html, body, div { margin: 0px; padding: 0px; } html, body { width:100%; height:100%; } </style></header><body>_CONTENT_</body></html>";
     
     // replace content keyword with actual content
     baseHtml = [baseHtml stringByReplacingOccurrencesOfString:@"_CONTENT_" withString:html];
@@ -149,14 +156,10 @@
     [_mraid injectMRAID];
     
     // lock-and-load
-    if (@available(iOS 9.0, *)) {
-        [_webView loadData:[baseHtml dataUsingEncoding:NSUTF8StringEncoding]
-                  MIMEType:@"text/html"
-     characterEncodingName:@"UTF-8"
-                   baseURL:[NSURL URLWithString:base]];
-    } else {
-        [_webView loadHTMLString:baseHtml baseURL:[NSURL URLWithString:base]];
-    }
+    [_webView loadData:[baseHtml dataUsingEncoding:NSUTF8StringEncoding]
+              MIMEType:@"text/html"
+      textEncodingName:@"UTF-8"
+               baseURL:[NSURL URLWithString:base]];
 }
 
 - (CGRect) map:(CGRect)sourceFrame into:(CGRect)boundingFrame {
@@ -193,8 +196,9 @@
 // WebViewDelegate implementation
 ////////////////////////////////////////////////////////////////////////////////
 
-- (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler {
-    NSString *url = [[navigationAction.request URL] absoluteString];
+- (BOOL) webView:(UIWebView *)webView shouldStartLoadWithRequest:(NSURLRequest *)request navigationType:(UIWebViewNavigationType)navigationType {
+    
+    NSString *url = [[request URL] absoluteString];
     
     SAMRAIDCommand *command = [[SAMRAIDCommand alloc] init];
     BOOL isMraid = [command isMRAIDComamnd:url];
@@ -204,22 +208,20 @@
         command.delegate = self;
         [command getQuery:url];
         
-        decisionHandler(WKNavigationActionPolicyCancel);
-        return;
+        return false;
     }
     else {
         if (_finishedLoading) {
             
             // get the request url
-            NSURL *url = [navigationAction.request URL];
+            NSURL *url = [request URL];
             
             // get the url as a string
             NSString *urlStr = [url absoluteString];
             
             // protect against about blanks
             if ([urlStr rangeOfString:@"about:blank"].location != NSNotFound) {
-                decisionHandler(WKNavigationActionPolicyAllow);
-                return;
+                return true;
             }
             
             // guard against iframes
@@ -228,8 +230,7 @@
                 
                 NSLog(@"__WEBVIEW__: SA IFRAME");
                 
-                decisionHandler(WKNavigationActionPolicyAllow);
-                return;
+                return true;
             }
             
             // check to see if the URL has a redirect, and take only the redirect
@@ -246,18 +247,16 @@
             _clickHandler(url);
             
             // don't propagate this
-            decisionHandler(WKNavigationActionPolicyCancel);
-            return;
+            return false;
         }
         
         // else just return true
-        decisionHandler(WKNavigationActionPolicyAllow);
-        return;
+        return true;
     }
 }
 
-- (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
-    [webView evaluateJavaScript:@"window.webkit.messageHandlers.samraid.postMessage('SAMRAID_EXT'+document.getElementsByTagName('html')[0].innerHTML);" completionHandler:nil];
+- (void) webViewDidFinishLoad:(UIWebView *)webView {
+    [webView stringByEvaluatingJavaScriptFromString:@"console.log('SAMRAID_EXT'+document.getElementsByTagName('html')[0].innerHTML);"];
     
     if (!_finishedLoading) {
         _finishedLoading = true;
@@ -265,32 +264,10 @@
     }
 }
 
-- (void)webView:(WKWebView *)webView didFailNavigation:(WKNavigation *)navigation withError:(NSError *)error {
+- (void) webView:(UIWebView *)webView didFailLoadWithError:(NSError *)error {
     if (!_finishedLoading) {
         _finishedLoading = true;
         _eventHandler(saWeb_Error);
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// WKScriptMessageHandler implementation
-////////////////////////////////////////////////////////////////////////////////
-
-- (void)userContentController:(WKUserContentController *)userContentController didReceiveScriptMessage:(WKScriptMessage *)message {
-    NSString *messageString = [[NSString alloc] init];
-    if ([message.body isKindOfClass:[NSString self]]) {
-        messageString = (NSString*)message.body;
-    }
-    
-    if ([messageString rangeOfString:@"SAMRAID_EXT"].location != NSNotFound) {
-
-        NSString *jsMsg = [messageString stringByReplacingOccurrencesOfString:@"SAMRAID_EXT" withString:@""];
-        BOOL hasMraid = [jsMsg rangeOfString:@"mraid"].location != NSNotFound;
-        [self.mraid setHasMRAID:hasMraid];
-
-        if ([self.mraid hasMRAID]) {
-            [self.delegate didReceiveMessageFromJavaScript:jsMsg];
-        }
     }
 }
 
@@ -418,7 +395,7 @@
     _clickHandler = handler != nil ? handler : _clickHandler;
 }
 
-- (WKWebView*) getWebView {
+- (UIWebView*) getWebView {
     return _webView;
 }
 
