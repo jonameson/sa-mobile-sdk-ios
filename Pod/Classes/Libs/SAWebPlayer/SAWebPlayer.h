@@ -6,16 +6,6 @@
 #import <WebKit/WebKit.h>
 #import <UIKit/UIKit.h>
 #import "SAWebView.h"
-#import "SAMRAID.h"
-#import "SAMRAIDCommand.h"
-
-@class SAExpandedWebPlayer;
-@class SAResizedWebPlayer;
-
-@protocol SAWebPlayerAuxProtocol <NSObject>
-- (void) didReceiveMessageFromJavaScript:(NSString*)message;
-- (void) didRotateScreen;
-@end
 
 /**
  * WebPlayer event enum, containing two main events:
@@ -43,15 +33,8 @@ typedef void (^saWebPlayerDidReceiveClick)(NSURL* url);
 @property (nonatomic, strong) SAWebView                     *webView;
 @property (nonatomic, assign) CGSize                        contentSize;
 
-@property (nonatomic, strong) SAMRAID                       *mraid;
-
-@property (nonatomic, strong) SAExpandedWebPlayer           *expandedPlayer;
-@property (nonatomic, strong) SAResizedWebPlayer            *resizedPlayer;
-
 @property (nonatomic, assign) CGFloat                       scaleX;
 @property (nonatomic, assign) CGFloat                       scaleY;
-
-@property (nonatomic, assign) id<SAWebPlayerAuxProtocol>    delegate;
 
 /**
  * Web Player init method with an ad size and a parent rect
