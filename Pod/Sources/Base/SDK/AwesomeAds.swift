@@ -5,6 +5,7 @@
 //  Created by Gunhan Sancar on 26/04/2020.
 //
 
+
 @objc
 public class AwesomeAds: NSObject {
     public static let shared = AwesomeAds()
