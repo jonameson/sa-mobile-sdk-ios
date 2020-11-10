@@ -14,15 +14,15 @@ references:
       _JAVA_OPTIONS: "-Xms512M -Xmx1024M -XX:ParallelGCThreads=4 -XX:ConcGCThreads=4 -XX:ParallelGCThreads=4 -Djava.util.concurrent.ForkJoinPool.common.parallelism=4"
       GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx2048M -XX:MaxPermSize=512m -XX:+HeapDumpOnOutOfMemoryError" -Dorg.gradle.workers.max=2 -Dorg.gradle.daemon=false -Dorg.gradle.caching=true -Dorg.gradle.configureondemand=true -Dkotlin.compiler.execution.strategy=in-process -Dkotlin.incremental=false'
       
-  # clone some scripts
-  clone_scripts_repo: &clone_scripts_repo
-    run:
-      name: Clone scripts repo
-      command: |
-        echo "Github unknown hosts setup"
-        mkdir -p ~/.ssh/
-        echo -e "Host github.comntStrictHostKeyChecking non" >> ~/.ssh/config
-        git clone "${SA_CONTINUOUS_INTEGRATION_GIT_REPO_URL}" "${SA_PATH_TO_CONTINUOUS_INTEGRATION_REPO}"
+#  # clone some scripts
+#  clone_scripts_repo: &clone_scripts_repo
+#    run:
+#      name: Clone scripts repo
+#      command: |
+#        echo "Github unknown hosts setup"
+#        mkdir -p ~/.ssh/
+#        echo -e "Host github.comntStrictHostKeyChecking non" >> ~/.ssh/config
+#        git clone "${SA_CONTINUOUS_INTEGRATION_GIT_REPO_URL}" "${SA_PATH_TO_CONTINUOUS_INTEGRATION_REPO}"
 
   # bootstram iOS system
   bootstrap_ios: &bootstrap_ios
@@ -52,7 +52,7 @@ jobs:
     <<: *ios_config
     steps:
       - checkout
-      - *clone_scripts_repo
+#      - *clone_scripts_repo
       - *bootstrap_ios
       - run:
           name: Running Unit tests iOS
