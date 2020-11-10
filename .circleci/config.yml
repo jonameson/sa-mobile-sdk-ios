@@ -1,0 +1,73 @@
+version: 2.1
+
+references:
+  ## Docker image configurations for iOS
+  ios_config: &ios_config
+    macos:
+      xcode: 11.5.0
+    environment:
+      FL_OUTPUT_DIR: output
+      LC_ALL: en_GB.UTF-8
+      LANG: en_GB.UTF-8
+      ANDROID_HOME: /usr/local/share/android-sdk
+      TERM: dumb
+      _JAVA_OPTIONS: "-Xms512M -Xmx1024M -XX:ParallelGCThreads=4 -XX:ConcGCThreads=4 -XX:ParallelGCThreads=4 -Djava.util.concurrent.ForkJoinPool.common.parallelism=4"
+      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx2048M -XX:MaxPermSize=512m -XX:+HeapDumpOnOutOfMemoryError" -Dorg.gradle.workers.max=2 -Dorg.gradle.daemon=false -Dorg.gradle.caching=true -Dorg.gradle.configureondemand=true -Dkotlin.compiler.execution.strategy=in-process -Dkotlin.incremental=false'
+      
+  # clone some scripts
+  clone_scripts_repo: &clone_scripts_repo
+    run:
+      name: Clone scripts repo
+      command: |
+        echo "Github unknown hosts setup"
+        mkdir -p ~/.ssh/
+        echo -e "Host github.comntStrictHostKeyChecking non" >> ~/.ssh/config
+        git clone "${SA_CONTINUOUS_INTEGRATION_GIT_REPO_URL}" "${SA_PATH_TO_CONTINUOUS_INTEGRATION_REPO}"
+
+  # bootstram iOS system
+  bootstrap_ios: &bootstrap_ios
+    run:
+      name: Bootstrap iOS
+      command: ${SA_PATH_TO_CONTINUOUS_INTEGRATION_REPO}/bootstrap/bootstrap-mobile-ios-sdk.sh
+
+  set_xcode_path: &set_xcode_path
+    run:
+      name: Set XCode path
+      command: cd iOSApp && sudo xcode-select -s /Applications/Xcode.app
+
+  ios_install_versioning_plugin: &ios_install_versioning_plugin
+    run:
+      name: Run install plugin tests
+      command: cd Example && sudo fastlane add_plugin versioning
+
+  pre_pod_install: &pre_pod_install
+    run:
+      name: Pod Install
+      command: cd Example && fastlane pod_install
+      
+jobs:
+
+  # Test Sub Modules #
+  run_unit_tests:
+    <<: *ios_config
+    steps:
+      - checkout
+      - *clone_scripts_repo
+      - *bootstrap_ios
+      - run:
+          name: Running Unit tests iOS
+          command: echo Hello World
+          
+##### WORKFLOW #####
+orbs:
+  node: circleci/node@4.0.0
+workflows:
+  pjmobile_workflow:
+    jobs:
+      # Android tests
+      - run_unit_tests:
+          context: MOBILE_IOS_APPS
+          filters:
+            # ignore git commit tags
+            tags:
+              ignore: /^v.*/
