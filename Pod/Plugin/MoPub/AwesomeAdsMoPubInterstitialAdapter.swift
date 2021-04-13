@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import MoPub
+import MoPubSDK
 
 @objc
 public class AwesomeAdsMoPubInterstitialAdapter: MPFullscreenAdAdapter, MPThirdPartyFullscreenAdAdapter {
@@ -66,7 +66,10 @@ public class AwesomeAdsMoPubInterstitialAdapter: MPFullscreenAdAdapter, MPThirdP
         case .adEnded:
             do {}
         case .adClosed:
+            delegate?.fullscreenAdAdapterAdWillDisappear(self)
             delegate?.fullscreenAdAdapterAdDidDisappear(self)
+            delegate?.fullscreenAdAdapterAdWillDismiss(self)
+            delegate?.fullscreenAdAdapterAdDidDismiss(self)
         }
     }
 
