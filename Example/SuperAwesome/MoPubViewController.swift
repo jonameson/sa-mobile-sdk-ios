@@ -8,7 +8,7 @@
 #if MOPUB_PLUGIN
 
 import UIKit
-import MoPub
+import MoPubSDK
 import SuperAwesome
 
 class MoPubViewController: UIViewController {
@@ -28,7 +28,6 @@ class MoPubViewController: UIViewController {
         
         let configuration = MPMoPubConfiguration.init(adUnitIdForAppInitialization: bannerAdId)
         configuration.loggingLevel = .debug
-        configuration.additionalNetworks = [AwesomeAdsMoPubAdapterConfiguration.self]
                 
         MoPub.sharedInstance().initializeSdk(with: configuration) {
             print("MoPub SDK initialisation complete")
